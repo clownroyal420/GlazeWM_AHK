@@ -33,6 +33,7 @@ SetFFM( EnableDisable )
 
 If !ProcessExist("glazewm.exe") {
     RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe start -c config.yaml", ,"Hide")
+    RunWait("python.exe " A_Appdata "\glzr\glazewm\AutoTile.py", , "Hide")
 }
 
 WinSetTransparent 0, "ahk_class Shell_TrayWnd"
@@ -88,7 +89,7 @@ FocusedMonitor()
 #+l::glazewm("move --direction right")
 
 ; #x::glazewm("toggle-tiling-direction")
-SetTimer AutoTile, 1000
+; SetTimer AutoTile, 1000
 Autotile()
 {
     Try {
