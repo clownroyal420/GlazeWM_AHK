@@ -2,18 +2,19 @@
 #SingleInstance Force
 TraySetIcon "logo.ico"
 
+
 ~Home:: ; Doubletapping Home will reload the script.
 {
     if (A_PriorHotkey != A_ThisHotkey or A_TimeSincePriorHotkey > DllCall("GetDoubleClickTime"))
-    {
-        ; Too much time between presses, so this isn't a double-press.
-        KeyWait "Home"
-        return
-    }
+        {
+            ; Too much time between presses, so this isn't a double-press.
+            KeyWait "Home"
+            return
+        }
     Reload
 }
 
-global ffm := false         ; Set this to the desired default setting.
+global ffm := true          ; Set this to the desired default setting.
 global ffmDelay := 100      ; Focus-Follows-Mouse delay in milliseconds
 SetFFM( ffm )
 SetFFM( EnableDisable )
@@ -31,12 +32,24 @@ SetFFM( EnableDisable )
     SetFFM( ffmlv )
 }
 
-If !ProcessExist("glazewm.exe") {
-    RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe start -c config.yaml", ,"Hide")
-    RunWait("python.exe " A_Appdata "\glzr\glazewm\AutoTile.py", , "Hide")
+ToggleTaskbar(1)
+#F1::ToggleTaskBar()
+ToggleTaskbar(action := -1) ; 1 for hide, 0 for show, -1 for toggle
+{
+    static ABM_GETSTATE := 0x00000004
+    static ABM_SETSTATE := 0x0000000A
+    static ABS_AUTOHIDE := 0x1
+    static ABS_ALWAYSONTOP := 0x2
+    APPBARDATA := Buffer(size := 2 * A_PtrSize + 2 * 4 + 16 + A_PtrSize, 0)
+    NumPut("UInt", size, APPBARDATA)
+    STATE := DllCall("Shell32\SHAppBarMessage", "UInt", ABM_GETSTATE, "Ptr", APPBARDATA)
+    if action = STATE & ABS_AUTOHIDE {
+        return
+    }
+    NumPut('UInt', STATE ^ ABS_AUTOHIDE, APPBARDATA, size - A_PtrSize)
+    WinSetTransparent 255*!(STATE ^ ABS_AUTOHIDE), "ahk_class Shell_TrayWnd"
+    return DllCall("Shell32\SHAppBarMessage", "UInt", ABM_SETSTATE, "Ptr", APPBARDATA)
 }
-
-WinSetTransparent 0, "ahk_class Shell_TrayWnd"
 
 OnExit(OnExitFunction)
 OnExitFunction(ExitReason, ExitCode := 0)
@@ -45,12 +58,12 @@ OnExitFunction(ExitReason, ExitCode := 0)
     {
         Case "Exit":
             {
-                WinSetTransparent 255, "ahk_class Shell_TrayWnd"
+                ToggleTaskbar(0)
                 glazewm("wm-exit")
             }
         Case "Menu":
         {
-            WinSetTransparent 255, "ahk_class Shell_TrayWnd"
+            ToggleTaskbar(0)
             glazewm("wm-exit")
         }
         Case "Reload":
@@ -60,43 +73,66 @@ OnExitFunction(ExitReason, ExitCode := 0)
     }
 }
 
-glazewm(command)
-{
-	RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe command " command, ,"Hide")
-}
+MonitorXPositioning()
 FocusedMonitor()
 {
+    global MonitorXCoords
     CoordMode("Mouse","Screen")
-    MonitorCount := MonitorGetCount()
-    loop MonitorCount {
-        MonitorIndex := MonitorCount - A_Index + 1
-        MouseGetPos(&X, &Y)
-        MonitorGet(MonitorIndex, &Left, &Top, &Right, &Bottom)
-        if X > Left and X < Right {
+    MouseGetPos(&X, &Y)
+    loop MonitorXCoords.Length {
+        if X < Float(MonitorXCoords[A_Index]) {
             Return A_Index
         }
     }
 }
-
-#h::glazewm("focus --direction left")
-#j::glazewm("focus --direction down")
-#k::glazewm("focus --direction up")
-#l::glazewm("focus --direction right")
-
-#+h::glazewm("move --direction left")
-#+j::glazewm("move --direction down")
-#+k::glazewm("move --direction up")
-#+l::glazewm("move --direction right")
-
-; #x::glazewm("toggle-tiling-direction")
-; SetTimer AutoTile, 1000
-Autotile()
+MonitorXPositioning()
 {
-    Try {
-        WinGetPos(,,&Width,&Height,"A")
-        TilingDirection := Width>Height ? "horizontal" : "vertical"
-        glazewm(Format("set-tiling-direction {}",TilingDirection))
+    global MonitorXCoords
+    XCoords := ""
+    loop MonitorGetCount()
+    {
+        MonitorGet(A_Index, , , &Right)
+        XCoords .= Right "`n"
     }
+    XCoords := Sort(RTrim(XCoords,'`n'),'N')
+    Return MonitorXCoords := StrSplit(Sort(XCoords,"N"),"`n")
+}
+
+If !ProcessExist("glazewm.exe") {
+    RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe start -c config.yaml", ,"Hide")
+    RunWait("python.exe " "AutoTile.py", , "Hide")
+}
+
+glazewm(command)
+{
+	RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe command " command, ,"Hide")
+}
+
+#h::focuswindow("left")
+#j::focuswindow("down")
+#k::focuswindow("up")
+#l::focuswindow("right")
+focuswindow(direction)
+{
+    CoordMode('Mouse', 'Screen')
+    glazewm("focus --direction " direction)
+    WinGetPos(&X, &Y, &W, &H, "A")
+    MouseMove(X+W-25,Y+H-25)
+}
+
+#+h::movewindow("left")
+#+j::movewindow("down")
+#+k::movewindow("up")
+#+l::movewindow("right")
+movewindow(direction)
+{
+
+    CoordMode('Mouse','Screen')
+    hwnd := WinGetID("A")
+    glazewm("move --direction " direction)
+    sleep 50
+    WinGetPos(&X, &Y, &W, &H, "ahk_id " hwnd)
+    MouseMove(X+W-25,Y+H-25)
 }
 
 #t::glazewm("toggle-floating --centered")
