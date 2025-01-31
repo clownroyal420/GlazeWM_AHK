@@ -59,11 +59,13 @@ OnExitFunction(ExitReason, ExitCode := 0)
         Case "Exit":
             {
                 ToggleTaskbar(0)
+                SetFFM( false )
                 glazewm("wm-exit")
             }
         Case "Menu":
         {
             ToggleTaskbar(0)
+            SetFFM( false )
             glazewm("wm-exit")
         }
         Case "Reload":
