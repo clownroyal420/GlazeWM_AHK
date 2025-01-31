@@ -98,11 +98,6 @@ MonitorXPositioning()
     Return MonitorXCoords := StrSplit(Sort(XCoords,"N"),"`n")
 }
 
-If !ProcessExist("glazewm.exe") {
-    RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe start -c config.yaml", ,"Hide")
-    RunWait("python.exe " "AutoTile.py", , "Hide")
-}
-
 glazewm(command)
 {
 	RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe command " command, ,"Hide")
@@ -240,6 +235,12 @@ FlowLauncher( action )
         }
         Return
     }
+}
+
+; Auto-Start GlazeWM if not already started
+If !ProcessExist("glazewm.exe") {
+    RunWait("C:\Program Files\glzr.io\GlazeWM\cli\glazewm.exe start -c config.yaml", ,"Hide")
+    RunWait("python.exe " "AutoTile.py", , "Hide")
 }
 
 ; yasb status bar
